@@ -258,29 +258,34 @@
       { name:"Ataque surpresa", base:3 },
       { name:"Mobilidade de infantaria", base:3 },
       { name:"Arquearia", base:3 },
+      { name:"Resistência em campanhas", base:3 },
       { name:"Comércio", base:3 }
+
     ];
 
     const DEBUFFS = [
-      { name:"Marinha", base:2 },
-      { name:"População", base:4 },
-      { name:"Cavalaria", base:3 },
-      { name:"Agricultura", base:3 },
-      { name:"Disciplina", base:4 },
-      { name:"Força Física", base:3 },
-      { name:"Infraestrutura geral", base:4 },
-      { name:"Fortificações", base:3 },
-      { name:"Pecuária", base:2 },
+      { name:"Deficiência em Marinha", base:2 },
+      { name:"Deficiência em População", base:4 },
+      { name:"Deficiência em Cavalaria", base:3 },
+      { name:"Deficiência em Agricultura", base:3 },
+      { name:"Deficiência em Disciplina", base:4 },
+      { name:"Fraqueza Física", base:3 },
+      { name:"Deficiência em Infraestrutura geral", base:4 },
+      { name:"Deficiência em Fortificações", base:3 },
+      { name:"Deficiência em Pecuária", base:2 },
       { name:"Crises amplificadas", base:6 },
-      { name:"Inovação e Tecnologia", base:4 },
+      { name:"Deficiência em Inovação e Tecnologia", base:4 },
       { name:"Vulnerabilidade a neve", base:2 },
       { name:"Vulnerabilidade a floresta", base:2 },
       { name:"Vulnerabilidade a montanha", base:2 },
-      { name:"Ataque surpresa", base:1 },
+      { name:"Deficiência em ataque surpresa", base:1 },
       { name:"Mobilidade de infantaria", base:3 },
-      { name:"Arquearia", base:2 },
+      { name:"Deficiência em Arquearia", base:2 },
       { name:"Corrupção", base:4 },
       { name:"Dependência de elites", base:3 },
+      { name:"Dependência de equipamento", base:3 },
+      { name:"Deficiência de metalurgia", base:3 },
+      { name:"Exaustão de guerra", base:3 },
       { name:"Dependência de comércio", base:4 }
     ];
 
@@ -324,8 +329,10 @@
     link("Adaptação a floresta", "Vulnerabilidade a floresta");
     link("Adaptação a montanha", "Vulnerabilidade a montanha");
     link("Estabilidade", "Crises amplificadas");
-    link("Comércio", "Dependência de comércio");
-
+    link("Estabilidade", "Corrupção");
+    link("Exaustão de guerra", "Resistência em campanhas");
+    
+    
     // ---------- Estado ----------
     // selections: Map(key -> {kind,name,base,tier})
     const selections = new Map();
