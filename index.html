@@ -1,0 +1,618 @@
+from pathlib import Path, PurePosixPath
+html = r"""<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Buffs & Debuffs — Balanceador</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#111824;
+      --panel2:#0f1620;
+      --text:#e7eef8;
+      --muted:#9fb0c6;
+      --border:#223247;
+      --ok:#2ee59d;
+      --bad:#ff5d5d;
+      --warn:#ffcc66;
+      --chip:#162235;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 700px at 20% -10%, rgba(46,229,157,.12), transparent 55%),
+                  radial-gradient(900px 600px at 110% 10%, rgba(116,140,255,.10), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+    }
+    header{
+      position:sticky; top:0; z-index:10;
+      background: linear-gradient(to bottom, rgba(11,15,20,.95), rgba(11,15,20,.78));
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(34,50,71,.65);
+    }
+    .wrap{max-width:1200px; margin:0 auto; padding:18px 16px;}
+    h1{margin:0; font-size:18px; letter-spacing:.2px}
+    .sub{margin-top:6px; color:var(--muted); font-size:12.5px}
+    .topbar{
+      display:grid; gap:12px;
+      grid-template-columns: 1.2fr 1fr;
+      align-items:start;
+    }
+    @media (max-width:900px){ .topbar{grid-template-columns:1fr;} }
+    .panel{
+      background: linear-gradient(180deg, rgba(17,24,36,.95), rgba(15,22,32,.95));
+      border: 1px solid rgba(34,50,71,.75);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding:14px;
+    }
+    .row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    .row > *{flex: 0 0 auto}
+    .chip{
+      background: rgba(22,34,53,.9);
+      border:1px solid rgba(34,50,71,.85);
+      padding:8px 10px;
+      border-radius:999px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      color:var(--text);
+      min-height:34px;
+    }
+    .chip b{font-weight:700}
+    .status{
+      font-weight:700;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(34,50,71,.85);
+      background: rgba(22,34,53,.65);
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      user-select:none;
+    }
+    .status.ok{color:var(--ok); border-color: rgba(46,229,157,.35); background: rgba(46,229,157,.08);}
+    .status.bad{color:var(--bad); border-color: rgba(255,93,93,.35); background: rgba(255,93,93,.08);}
+    .status.warn{color:var(--warn); border-color: rgba(255,204,102,.35); background: rgba(255,204,102,.08);}
+    .btn{
+      cursor:pointer;
+      border-radius:12px;
+      border:1px solid rgba(34,50,71,.85);
+      background: rgba(22,34,53,.75);
+      color:var(--text);
+      padding:10px 12px;
+      font-weight:700;
+      letter-spacing:.15px;
+      transition: transform .05s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:hover{background: rgba(22,34,53,.95)}
+    .btn:active{transform: translateY(1px)}
+    .btn.primary{
+      border-color: rgba(46,229,157,.45);
+      background: rgba(46,229,157,.14);
+    }
+    .btn.primary:hover{background: rgba(46,229,157,.18)}
+    .btn:disabled{
+      opacity:.45; cursor:not-allowed; transform:none;
+    }
+    .grid{
+      margin-top:14px;
+      display:grid;
+      gap:14px;
+      grid-template-columns: 1fr 1fr;
+    }
+    @media (max-width:900px){ .grid{grid-template-columns:1fr;} }
+    .colTitle{
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:10px;
+    }
+    .colTitle h2{margin:0; font-size:15px}
+    .search{
+      width:100%;
+      padding:10px 12px;
+      background: rgba(9,13,18,.45);
+      border:1px solid rgba(34,50,71,.75);
+      border-radius:12px;
+      color:var(--text);
+      outline:none;
+    }
+    .list{
+      margin-top:10px;
+      display:grid;
+      gap:10px;
+      max-height: 62vh;
+      overflow:auto;
+      padding-right:4px;
+    }
+    .item{
+      display:grid;
+      grid-template-columns: 22px 1fr auto;
+      gap:10px;
+      align-items:center;
+      padding:10px 10px;
+      border-radius: 14px;
+      border:1px solid rgba(34,50,71,.75);
+      background: rgba(9,13,18,.35);
+    }
+    .item.disabled{
+      opacity:.55;
+      background: rgba(9,13,18,.25);
+    }
+    .nameLine{
+      display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+    }
+    .nameLine .name{font-weight:800}
+    .pill{
+      font-size:12px;
+      padding:3px 8px;
+      border-radius:999px;
+      background: rgba(22,34,53,.75);
+      border: 1px solid rgba(34,50,71,.75);
+      color: var(--muted);
+    }
+    select{
+      background: rgba(22,34,53,.75);
+      border: 1px solid rgba(34,50,71,.75);
+      border-radius: 12px;
+      color: var(--text);
+      padding:8px 10px;
+      outline:none;
+      cursor:pointer;
+    }
+    .footer{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:12px;
+    }
+    textarea{
+      width:100%;
+      min-height:90px;
+      resize:vertical;
+      padding:10px 12px;
+      background: rgba(9,13,18,.45);
+      border:1px solid rgba(34,50,71,.75);
+      border-radius:12px;
+      color:var(--text);
+      outline:none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:12.5px;
+    }
+    .small{font-size:12px;color:var(--muted)}
+    a{color:inherit}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="topbar">
+        <div>
+          <h1>Menu de Buffs & Debuffs (balanceamento)</h1>
+          <div class="sub">
+            Regras: cada seleção tem um valor base e uma intensidade. Buffs somam positivo; Debuffs somam negativo.
+            O total precisa ficar <b>0 ou menos</b>. E antíteses se bloqueiam.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="row" style="justify-content:space-between; gap:12px;">
+            <div class="chip"><span>Total</span> <b id="totalValue">0</b></div>
+            <div class="status ok" id="statusPill">OK (<= 0)</div>
+            <button class="btn" id="clearBtn" type="button">Limpar</button>
+            <button class="btn primary" id="exportBtn" type="button">Exportar JSON</button>
+          </div>
+          <div style="margin-top:10px;">
+            <div class="small">Export (copia/cola):</div>
+            <textarea id="exportBox" placeholder="Clique em “Exportar JSON” para gerar aqui." spellcheck="false"></textarea>
+            <div class="footer">
+              Intensidades: <b>Alta</b>=2×, <b>Muito Alta</b>=3×, <b>Insana</b>=5×, <b>Extrema</b>=7×.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="panel">
+          <div class="colTitle">
+            <h2>Buffs</h2>
+            <span class="pill" id="buffCount">0 selecionados</span>
+          </div>
+          <input id="buffSearch" class="search" placeholder="Buscar buff..." />
+          <div class="list" id="buffList"></div>
+        </section>
+
+        <section class="panel">
+          <div class="colTitle">
+            <h2>Debuffs</h2>
+            <span class="pill" id="debuffCount">0 selecionados</span>
+          </div>
+          <input id="debuffSearch" class="search" placeholder="Buscar debuff..." />
+          <div class="list" id="debuffList"></div>
+        </section>
+      </div>
+    </div>
+  </header>
+
+  <script>
+    // ---------- Dados ----------
+    const MULTS = {
+      "Alta": 2,
+      "Muito Alta": 3,
+      "Insana": 5,
+      "Extrema": 7
+    };
+    const TIERS = Object.keys(MULTS);
+
+    const BUFFS = [
+      { name:"Marinha", base:3 },
+      { name:"População", base:6 },
+      { name:"Cavalaria", base:4 },
+      { name:"Agricultura", base:2 },
+      { name:"Disciplina", base:3 },
+      { name:"Força Física", base:3 },
+      { name:"Infraestrutura geral", base:3 },
+      { name:"Fortificações", base:4 },
+      { name:"Pecuária", base:2 },
+      { name:"Estabilidade", base:4 },
+      { name:"Inovação e Tecnologia", base:5 },
+      { name:"Arquitetura monumental", base:2 },
+      { name:"Adaptação ao deserto", base:4 },
+      { name:"Adaptação a neve", base:4 },
+      { name:"Adaptação a floresta", base:4 },
+      { name:"Adaptação a montanha", base:4 },
+      { name:"Ataque surpresa", base:3 },
+      { name:"Mobilidade de infantaria", base:3 },
+      { name:"Arquearia", base:3 },
+      { name:"Comércio", base:3 }
+    ];
+
+    const DEBUFFS = [
+      { name:"Marinha", base:2 },
+      { name:"População", base:4 },
+      { name:"Cavalaria", base:3 },
+      { name:"Agricultura", base:3 },
+      { name:"Disciplina", base:4 },
+      { name:"Força Física", base:3 },
+      { name:"Infraestrutura geral", base:4 },
+      { name:"Fortificações", base:3 },
+      { name:"Pecuária", base:2 },
+      { name:"Crises amplificadas", base:6 },
+      { name:"Inovação e Tecnologia", base:4 },
+      { name:"Vulnerabilidade ao deserto", base:3 },
+      { name:"Vulnerabilidade a neve", base:3 },
+      { name:"Vulnerabilidade a floresta", base:3 },
+      { name:"Vulnerabilidade a montanha", base:3 },
+      { name:"Ataque surpresa", base:1 },
+      { name:"Mobilidade de infantaria", base:3 },
+      { name:"Arquearia", base:2 },
+      { name:"Corrupção", base:4 },
+      { name:"Dependência de elites", base:3 },
+      { name:"Dependência de comércio", base:4 }
+    ];
+
+    // Antíteses (bloqueios)
+    // - Sempre bloqueia o mesmo "tema" (mesmo nome normalizado)
+    // - Pares especiais: Adaptação <-> Vulnerabilidade, Estabilidade <-> Crises amplificadas, Comércio <-> Dependência de comércio
+    function keyOf(s){
+      return s
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g," ")
+        .trim()
+        .replace(/\s+/g," ");
+    }
+
+    const pair = (a,b)=>[keyOf(a), keyOf(b)];
+
+    const SPECIAL_PAIRS = [
+      pair("Adaptação ao deserto", "Vulnerabilidade ao deserto"),
+      pair("Adaptação a neve", "Vulnerabilidade a neve"),
+      pair("Adaptação a floresta", "Vulnerabilidade a floresta"),
+      pair("Adaptação a montanha", "Vulnerabilidade a montanha"),
+      pair("Estabilidade", "Crises amplificadas"),
+      pair("Comércio", "Dependência de comércio")
+    ];
+
+    const forbidden = new Map(); // key -> Set(keys forbidden on opposite list)
+    function addForbidden(aKey, bKey){
+      if(!forbidden.has(aKey)) forbidden.set(aKey, new Set());
+      forbidden.get(aKey).add(bKey);
+    }
+    // same-theme blocking (buff <-> debuff with same normalized name)
+    for(const b of BUFFS){
+      const bk = keyOf(b.name);
+      for(const d of DEBUFFS){
+        const dk = keyOf(d.name);
+        if(bk === dk){
+          addForbidden(bk, dk);
+          addForbidden(dk, bk);
+        }
+      }
+    }
+    // special pair blocking
+    for(const [aKey,bKey] of SPECIAL_PAIRS){
+      addForbidden(aKey, bKey);
+      addForbidden(bKey, aKey);
+    }
+
+    // ---------- Estado ----------
+    // selections: { [key]: {kind:"buff"|"debuff", name, base, tier} }
+    const selections = new Map();
+
+    // ---------- UI ----------
+    const buffList = document.getElementById("buffList");
+    const debuffList = document.getElementById("debuffList");
+    const buffSearch = document.getElementById("buffSearch");
+    const debuffSearch = document.getElementById("debuffSearch");
+
+    const totalValueEl = document.getElementById("totalValue");
+    const statusPill = document.getElementById("statusPill");
+    const exportBox = document.getElementById("exportBox");
+    const exportBtn = document.getElementById("exportBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const buffCount = document.getElementById("buffCount");
+    const debuffCount = document.getElementById("debuffCount");
+
+    function calcItemValue(kind, base, tier){
+      const mult = MULTS[tier] ?? 1;
+      const v = base * mult;
+      return kind === "buff" ? v : -v;
+    }
+
+    function computeTotals(){
+      let total = 0;
+      let b = 0;
+      let d = 0;
+      for(const item of selections.values()){
+        total += calcItemValue(item.kind, item.base, item.tier);
+        if(item.kind === "buff") b++; else d++;
+      }
+      return { total, b, d };
+    }
+
+    function getBlockedKeys(){
+      // any selected key blocks some opposite-keys
+      const blocked = new Set();
+      for(const [k, item] of selections.entries()){
+        const set = forbidden.get(k);
+        if(!set) continue;
+        for(const otherKey of set){
+          blocked.add(otherKey);
+        }
+      }
+      return blocked;
+    }
+
+    function makeTierSelect(currentTier){
+      const sel = document.createElement("select");
+      for(const t of TIERS){
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t + " (" + MULTS[t] + "×)";
+        if(t === currentTier) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      return sel;
+    }
+
+    function render(){
+      const { total, b, d } = computeTotals();
+      totalValueEl.textContent = String(total);
+
+      buffCount.textContent = `${b} selecionados`;
+      debuffCount.textContent = `${d} selecionados`;
+
+      // status pill
+      if(total <= 0){
+        statusPill.className = "status ok";
+        statusPill.textContent = "OK (<= 0)";
+      } else {
+        statusPill.className = "status bad";
+        statusPill.textContent = `Precisa de ${total} ou mais em debuffs`;
+      }
+      exportBtn.disabled = !(total <= 0);
+
+      const blocked = getBlockedKeys();
+      const buffQ = keyOf(buffSearch.value || "");
+      const debuffQ = keyOf(debuffSearch.value || "");
+
+      // clear lists
+      buffList.innerHTML = "";
+      debuffList.innerHTML = "";
+
+      // render buffs
+      for(const bItem of BUFFS){
+        const k = keyOf(bItem.name);
+        if(buffQ && !k.includes(buffQ)) continue;
+
+        const row = document.createElement("div");
+        row.className = "item";
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = selections.has(k) && selections.get(k).kind === "buff";
+
+        // disabled if blocked by selected opposite or if opposite selected with same key etc.
+        const isBlocked = blocked.has(k) && !(selections.has(k) && selections.get(k).kind === "buff");
+        cb.disabled = isBlocked;
+
+        if(isBlocked) row.classList.add("disabled");
+
+        const mid = document.createElement("div");
+        const nameLine = document.createElement("div");
+        nameLine.className = "nameLine";
+
+        const nm = document.createElement("div");
+        nm.className = "name";
+        nm.textContent = bItem.name;
+
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = "Base +" + bItem.base;
+
+        nameLine.appendChild(nm);
+        nameLine.appendChild(pill);
+        mid.appendChild(nameLine);
+
+        const right = document.createElement("div");
+        const currentTier = (selections.has(k) && selections.get(k).kind === "buff") ? selections.get(k).tier : "Alta";
+        const tierSel = makeTierSelect(currentTier);
+        tierSel.disabled = !cb.checked;
+
+        // listeners
+        cb.addEventListener("change", () => {
+          if(cb.checked){
+            selections.set(k, { kind:"buff", name:bItem.name, base:bItem.base, tier: tierSel.value });
+          } else {
+            if(selections.has(k) && selections.get(k).kind === "buff") selections.delete(k);
+          }
+          // if this selection blocks something already chosen, uncheck them
+          enforceBlocks();
+          render();
+        });
+        tierSel.addEventListener("change", () => {
+          if(selections.has(k) && selections.get(k).kind === "buff"){
+            selections.get(k).tier = tierSel.value;
+            enforceBlocks();
+            render();
+          }
+        });
+
+        right.appendChild(tierSel);
+
+        row.appendChild(cb);
+        row.appendChild(mid);
+        row.appendChild(right);
+        buffList.appendChild(row);
+      }
+
+      // render debuffs
+      for(const dItem of DEBUFFS){
+        const k = keyOf(dItem.name);
+        if(debuffQ && !k.includes(debuffQ)) continue;
+
+        const row = document.createElement("div");
+        row.className = "item";
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = selections.has(k) && selections.get(k).kind === "debuff";
+
+        const isBlocked = blocked.has(k) && !(selections.has(k) && selections.get(k).kind === "debuff");
+        cb.disabled = isBlocked;
+        if(isBlocked) row.classList.add("disabled");
+
+        const mid = document.createElement("div");
+        const nameLine = document.createElement("div");
+        nameLine.className = "nameLine";
+
+        const nm = document.createElement("div");
+        nm.className = "name";
+        nm.textContent = dItem.name;
+
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = "Base -" + dItem.base;
+
+        nameLine.appendChild(nm);
+        nameLine.appendChild(pill);
+        mid.appendChild(nameLine);
+
+        const right = document.createElement("div");
+        const currentTier = (selections.has(k) && selections.get(k).kind === "debuff") ? selections.get(k).tier : "Alta";
+        const tierSel = makeTierSelect(currentTier);
+        tierSel.disabled = !cb.checked;
+
+        cb.addEventListener("change", () => {
+          if(cb.checked){
+            selections.set(k, { kind:"debuff", name:dItem.name, base:dItem.base, tier: tierSel.value });
+          } else {
+            if(selections.has(k) && selections.get(k).kind === "debuff") selections.delete(k);
+          }
+          enforceBlocks();
+          render();
+        });
+        tierSel.addEventListener("change", () => {
+          if(selections.has(k) && selections.get(k).kind === "debuff"){
+            selections.get(k).tier = tierSel.value;
+            enforceBlocks();
+            render();
+          }
+        });
+
+        right.appendChild(tierSel);
+
+        row.appendChild(cb);
+        row.appendChild(mid);
+        row.appendChild(right);
+        debuffList.appendChild(row);
+      }
+    }
+
+    function enforceBlocks(){
+      // If an item is selected, remove any selected items that are forbidden by it.
+      // This keeps the rule: cannot pick a debuff that is antithesis of a chosen buff (and vice-versa).
+      const toRemove = new Set();
+      for(const [k,item] of selections.entries()){
+        const set = forbidden.get(k);
+        if(!set) continue;
+        for(const otherKey of set){
+          if(selections.has(otherKey)){
+            // Remove only if the other is opposite kind OR explicitly paired.
+            // (We keep same-key selections impossible anyway via forbiddens.)
+            toRemove.add(otherKey);
+          }
+        }
+      }
+      // If both try to remove each other, preserve the one most recently changed is hard;
+      // simplest: remove the forbidden ones except itself.
+      for(const k of toRemove){
+        selections.delete(k);
+      }
+    }
+
+    function exportJSON(){
+      const { total } = computeTotals();
+      const out = {
+        total,
+        valid: total <= 0,
+        buffs: [],
+        debuffs: []
+      };
+      for(const item of selections.values()){
+        const v = calcItemValue(item.kind, item.base, item.tier);
+        const entry = { name:item.name, base:item.base, tier:item.tier, mult:MULTS[item.tier], value:v };
+        if(item.kind === "buff") out.buffs.push(entry);
+        else out.debuffs.push(entry);
+      }
+      // sort stable
+      out.buffs.sort((a,b)=>a.name.localeCompare(b.name));
+      out.debuffs.sort((a,b)=>a.name.localeCompare(b.name));
+      exportBox.value = JSON.stringify(out, null, 2);
+      exportBox.focus();
+      exportBox.select();
+    }
+
+    buffSearch.addEventListener("input", render);
+    debuffSearch.addEventListener("input", render);
+
+    exportBtn.addEventListener("click", exportJSON);
+    clearBtn.addEventListener("click", () => {
+      selections.clear();
+      exportBox.value = "";
+      render();
+    });
+
+    // initial render
+    render();
+  </script>
+</body>
+</html>
+"""
+path = Path("/mnt/data/index.html")
+path.write_text(html, encoding="utf-8")
+str(path)
